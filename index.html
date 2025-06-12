@@ -1,0 +1,313 @@
+<!DOCTYPE html>
+<html lang="sl">
+<head>
+  <meta charset="UTF-8" />
+  <title>Prevozi za zabavo</title>
+  <style>
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      font-family: 'Segoe UI', sans-serif;
+      background: linear-gradient(135deg, #0f2027, #203a43, #2c5364);
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: flex-start;
+      color: #fff;
+    }
+
+    .login-card,
+    .form-container,
+    .list-container {
+      background: #1e1e2f;
+      padding: 30px;
+      border-radius: 20px;
+      box-shadow: 0 30px 60px rgba(0, 0, 0, 0.5);
+      width: 90%;
+      max-width: 600px;
+      margin: 20px auto;
+    }
+
+    .login-card:hover {
+      transform: rotateY(10deg) rotateX(10deg);
+    }
+
+    h1,
+    h2 {
+      text-align: center;
+      color: #00e5ff;
+      text-shadow: 0 0 10px #00e5ff;
+    }
+
+    input,
+    textarea,
+    button {
+      width: 100%;
+      padding: 10px;
+      margin-top: 10px;
+      border: none;
+      border-radius: 8px;
+      font-size: 16px;
+    }
+
+    input,
+    textarea {
+      background: #2c2c3c;
+      color: white;
+    }
+
+    button {
+      background: #00bcd4;
+      color: white;
+      cursor: pointer;
+      transition: 0.3s;
+    }
+
+    button:hover {
+      background: #0097a7;
+    }
+
+    .card {
+      background: #333;
+      margin-top: 15px;
+      padding: 15px;
+      border-radius: 10px;
+      box-shadow: 0 10px 20px rgba(0, 0, 0, 0.4);
+      transition: transform 0.3s, background 0.3s;
+    }
+
+    .card:hover {
+      transform: scale(1.02);
+      background: #3c3c3c;
+    }
+
+    .card small {
+      color: #ccc;
+    }
+
+    .done-btn {
+      margin-top: 10px;
+      background: #4caf50;
+    }
+
+    .done-btn:hover {
+      background: #388e3c;
+    }
+
+    a.tel {
+      color: #00e5ff;
+      text-decoration: none;
+      font-weight: bold;
+    }
+
+    .section-title {
+      border-bottom: 1px solid #444;
+      padding-bottom: 5px;
+      margin-top: 30px;
+    }
+
+    .logout-btn {
+      background: #e53935;
+      margin-top: 10px;
+    }
+
+    .logout-btn:hover {
+      background: #b71c1c;
+    }
+  </style>
+</head>
+<body>
+  <div class="login-card" id="login-card">
+    <h2>Prijava voznika!</h2>
+    <input type="text" id="vnosIme" placeholder="Uporabniško ime" />
+    <input type="password" id="vnosGeslo" placeholder="Geslo" />
+    <button onclick="shraniInNadaljuj()">Vstopi</button>
+  </div>
+
+  <div id="main-content" style="display: none;">
+    <h1>Prevozi na zabavo in iz zabave🪩</h1>
+    <div class="form-container">
+      <h2>Dodaj prevoz</h2>
+      <input type="text" id="ime" placeholder="Ime in priimek" />
+      <input type="text" id="ura" placeholder="Ura (npr. 18:45)" />
+      <input type="text" id="lokacija" placeholder="Lokacija" />
+      <input type="text" id="tel" placeholder="Telefonska številka" />
+      <textarea id="opombe" placeholder="Opombe (neobvezno)"></textarea>
+      <input type="number" id="osebe" placeholder="Število oseb" />
+      <button onclick="dodajPrevoz()">Dodaj prevoz</button>
+      <button class="logout-btn" onclick="odjava()">Odjava</button>
+    </div>
+
+    <div class="list-container">
+      <h2 class="section-title">Aktivni prevozi</h2>
+      <div id="aktivni-prevozi"></div>
+      <h2 class="section-title">Zaključeni prevozi</h2>
+      <div id="zakljuceni-prevozi"></div>
+    </div>
+  </div>
+
+  <script>
+    // Vnaprej določeni uporabniki in gesla (demo, ne za produkcijo)
+    const dovoljeniUporabniki = {
+      nelif : "nelika2006",
+      aljaž : "loveme",
+      direktor: "katodna",
+    };
+
+    let imeVoznika;
+
+    function shraniInNadaljuj() {
+      const ime = document.getElementById("vnosIme").value.trim();
+      const geslo = document.getElementById("vnosGeslo").value.trim();
+
+      if (!ime || !geslo) {
+        alert("Prosim vnesi uporabniško ime in geslo.");
+        return;
+      }
+
+      if (!(ime in dovoljeniUporabniki) || dovoljeniUporabniki[ime] !== geslo) {
+        alert("Napačno uporabniško ime ali geslo.");
+        return;
+      }
+
+      imeVoznika = ime;
+      localStorage.setItem("imeVoznika", ime);
+      document.getElementById("login-card").style.display = "none";
+      document.getElementById("main-content").style.display = "block";
+      prikaziPrevoze();
+    }
+
+    function odjava() {
+      localStorage.removeItem("imeVoznika");
+      location.reload();
+    }
+
+    window.onload = function () {
+      imeVoznika = localStorage.getItem("imeVoznika");
+      if (imeVoznika) {
+        document.getElementById("login-card").style.display = "none";
+        document.getElementById("main-content").style.display = "block";
+        prikaziPrevoze();
+      }
+    };
+
+    let aktivni = JSON.parse(localStorage.getItem("aktivniPrevozi")) || [];
+    let zakljuceni = JSON.parse(localStorage.getItem("zakljuceniPrevozi")) || [];
+
+    function shraniPodatke() {
+      localStorage.setItem("aktivniPrevozi", JSON.stringify(aktivni));
+      localStorage.setItem("zakljuceniPrevozi", JSON.stringify(zakljuceni));
+    }
+
+    function dodajPrevoz() {
+      const ime = document.getElementById("ime").value.trim();
+      const ura = document.getElementById("ura").value.trim();
+      const lokacija = document.getElementById("lokacija").value.trim();
+      const tel = document.getElementById("tel").value.trim();
+      const opombe = document.getElementById("opombe").value.trim();
+      const osebe = document.getElementById("osebe").value.trim();
+
+      if (!ime || !ura || !lokacija || !tel || !osebe) {
+        alert("Prosim izpolni vsa polja razen opomb.");
+        return;
+      }
+
+      aktivni.push({ ime, ura, lokacija, tel, opombe, osebe, voznik: null });
+      shraniPodatke();
+      prikaziPrevoze();
+
+      document.getElementById("ime").value = "";
+      document.getElementById("ura").value = "";
+      document.getElementById("lokacija").value = "";
+      document.getElementById("tel").value = "";
+      document.getElementById("opombe").value = "";
+      document.getElementById("osebe").value = "";
+    }
+
+    function sprejmiPrevoz(i) {
+      if (aktivni[i].voznik) {
+        alert("Prevoz je že sprejet.");
+        return;
+      }
+      aktivni[i].voznik = imeVoznika;
+      shraniPodatke();
+      prikaziPrevoze();
+    }
+
+    function zakljuciPrevoz(i) {
+      if (aktivni[i].voznik !== imeVoznika) {
+        alert("Ta prevoz je sprejel drug voznik.");
+        return;
+      }
+      zakljuceni.push(aktivni[i]);
+      aktivni.splice(i, 1);
+      shraniPodatke();
+      prikaziPrevoze();
+    }
+
+    function prikaziPrevoze() {
+      const aktivniDiv = document.getElementById("aktivni-prevozi");
+      const zakljuceniDiv = document.getElementById("zakljuceni-prevozi");
+
+      aktivniDiv.innerHTML = "";
+      zakljuceniDiv.innerHTML = "";
+
+      aktivni.forEach((p, i) => {
+        const card = document.createElement("div");
+        card.className = "card";
+
+        let vsebina = `
+          <strong>${p.ime}</strong><br>
+          🕒 ${p.ura}<br>
+          📍 <a class="tel" href="https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(
+            p.lokacija
+          )}" target="_blank">${p.lokacija}</a><br>
+          📞 <a class="tel" href="tel:${p.tel}">${p.tel}</a><br>
+          👨‍👩‍👧‍👦 Število oseb: ${p.osebe}<br>
+        `;
+        if (p.opombe) vsebina += `<em>Opombe:</em> ${p.opombe}<br>`;
+        if (p.voznik) vsebina += `<small>Voznik: ${p.voznik}</small><br>`;
+
+        card.innerHTML = vsebina;
+
+        if (!p.voznik) {
+          const btn = document.createElement("button");
+          btn.textContent = "Sprejmi prevoz";
+          btn.onclick = () => sprejmiPrevoz(i);
+          card.appendChild(btn);
+        } else if (p.voznik === imeVoznika) {
+          const btnDone = document.createElement("button");
+          btnDone.textContent = "Zaključi prevoz";
+          btnDone.className = "done-btn";
+          btnDone.onclick = () => zakljuciPrevoz(i);
+          card.appendChild(btnDone);
+        }
+
+        aktivniDiv.appendChild(card);
+      });
+
+      zakljuceni.forEach((p) => {
+        const card = document.createElement("div");
+        card.className = "card";
+        card.style.backgroundColor = "#444";
+
+        card.innerHTML = `
+          <strong>${p.ime}</strong><br>
+          🕒 ${p.ura}<br>
+          📍 <a class="tel" href="https://www.google.com/maps/search/?api=1&query${encodeURIComponent(p.lokacija)}" target="_blank">${p.lokacija}</a><br>
+          📞 <a class="tel" href="tel:${p.tel}">${p.tel}</a><br>
+          👨‍👩‍👧‍👦 Število oseb: ${p.osebe}<br>
+          ${p.opombe ? `<em>Opombe:</em> ${p.opombe}<br>` : ""}
+          <small>Voznik: ${p.voznik}</small>
+        `;
+
+        zakljuceniDiv.appendChild(card);
+      });
+    }
+  </script>
+</body>
+</html>
